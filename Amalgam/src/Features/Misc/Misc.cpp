@@ -897,35 +897,41 @@ void CMisc::AchievementSpam(CTFPlayer* pLocal)
 {
 	if (!Vars::Misc::Automation::AchievementSpam.Value || !pLocal || !pLocal->IsAlive())
 		return;
-
-	if (!m_tAchievementSpamTimer.Run(5.0f))
+	if (!m_tAchievementSpamTimer.Run(15.0f)) // change if required
 		return;
 
-	const auto pAchievementMgr = reinterpret_cast<IAchievementMgr*(*)(void)>(U::Memory.GetVFunc(I::EngineClient, 114))();
+	const auto pAchievementMgr = reinterpret_cast<IAchievementMgr * (*)(void)>(U::Memory.GetVFunc(I::EngineClient, 114))();
 	if (!pAchievementMgr)
 		return;
 
-	int achievementCount = pAchievementMgr->GetAchievementCount();
-	if (achievementCount <= 0)
-		return;
+	// Kill Everyone You Meet achievement by default
+    // TODO: add a new column to edit achievement timer & number directly in cheat (like you did with autoitem)
+	int specificAchievementID = 1105;
 
-	int randomIndex = SDK::RandomInt(0, achievementCount - 1);
-	auto pAchievement = pAchievementMgr->GetAchievementByIndex(randomIndex);
-	if (!pAchievement)
-		return;
-
-	int achievementID = pAchievement->GetAchievementID();
-	
-	pAchievementMgr->AwardAchievement(achievementID);
-	
-	if (I::SteamUserStats && pAchievement->GetName())
+	IAchievement* pAchievement = nullptr;
+	for (int i = 0; i < pAchievementMgr->GetAchievementCount(); i++)
 	{
-		I::SteamUserStats->ClearAchievement(pAchievement->GetName());
-		I::SteamUserStats->StoreStats();
-		
-		pAchievementMgr->AwardAchievement(achievementID);
-		I::SteamUserStats->StoreStats();
+		IAchievement* pCurrentAchievement = pAchievementMgr->GetAchievementByIndex(i);
+		if (pCurrentAchievement && pCurrentAchievement->GetAchievementID() == specificAchievementID)
+		{
+			pAchievement = pCurrentAchievement;
+			break;
+		}
 	}
+
+	if (!pAchievement || !pAchievement->GetName())
+		return;
+
+	I::SteamUserStats->RequestCurrentStats();
+	I::SteamUserStats->ClearAchievement(pAchievement->GetName());
+	I::SteamUserStats->StoreStats();
+
+	Sleep(100);
+
+	I::SteamUserStats->RequestCurrentStats();
+
+	pAchievementMgr->AwardAchievement(specificAchievementID);
+	I::SteamUserStats->StoreStats();
 }
 
 void CMisc::RandomVotekick(CTFPlayer* pLocal)
